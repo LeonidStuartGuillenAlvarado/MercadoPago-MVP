@@ -1,0 +1,60 @@
+[
+  {
+    "ContainingType": "MpQr.Api.Controllers.PaymentsController",
+    "Method": "Create",
+    "RelativePath": "api/payments",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "dto",
+        "Type": "MpQr.Api.Dtos.CreatePaymentRequestDto",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "MpQr.Api.Controllers.PaymentsController",
+    "Method": "Cancel",
+    "RelativePath": "api/payments/{externalReference}/cancel",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "externalReference",
+        "Type": "System.String",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "MpQr.Api.Controllers.PaymentsController",
+    "Method": "Status",
+    "RelativePath": "api/payments/{externalReference}/status",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "externalReference",
+        "Type": "System.String",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "MpQr.Api.Controllers.PaymentsController",
+    "Method": "Webhook",
+    "RelativePath": "api/payments/webhook",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  }
+]
