@@ -9,7 +9,7 @@ export class SignalRService {
 
   startConnection(onUpdate: (data: any) => void) {
     this.hubConnection = new signalR.HubConnectionBuilder()
-      .withUrl('https://timmy-uncarpeted-miki.ngrok-free.dev/paymentHub', {
+      .withUrl('https://postpalpebral-karrie-overhostilely.ngrok-free.dev/paymentHub', {
         withCredentials: true,
       })
       .withAutomaticReconnect()

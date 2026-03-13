@@ -63,7 +63,8 @@ namespace MpQr.Api.Controllers
             await _hub.Clients.All.SendAsync("PaymentUpdated", new
             {
                 externalReference,
-                status = result.Status
+                status = result.Status,
+                
             });
 
             return Ok(result);
@@ -193,9 +194,10 @@ namespace MpQr.Api.Controllers
             await _hub.Clients.All.SendAsync("PaymentUpdated", new
             {
                 externalReference = externalRef,
-                status = newStatus
+                status = newStatus, 
+                statusDetail = payment.StatusDetail
             });
-        }
+        }  
 
     }
 }

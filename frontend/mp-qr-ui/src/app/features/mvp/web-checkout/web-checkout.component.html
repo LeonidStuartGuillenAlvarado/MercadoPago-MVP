@@ -53,5 +53,10 @@
       </span>
     </div>
 
+    <div *ngIf="statusDetail()" class="text-center text-sm text-gray-600 mt-2">
+      {{ getStatusDetailText(statusDetail()) }}
+    </div>
+
+
   </div>
 </div>
