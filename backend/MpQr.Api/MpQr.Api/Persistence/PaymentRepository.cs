@@ -58,6 +58,7 @@ namespace MpQr.Api.Persistence
         public async Task UpdateStatusAndMpIdAsync(
             string externalReference,
             string status,
+            string statusDetail,
             string mpPaymentId)
         {
             using var conn = _factory.Create();
@@ -65,12 +66,14 @@ namespace MpQr.Api.Persistence
                 @"UPDATE Payments
                     SET Status = @status,
                      MercadoPagoPaymentId = @mpId,
-                    UpdatedAt = GETDATE()
+                     StatusDetail = @statusDetail,
+                     UpdatedAt = GETDATE()
                     WHERE ExternalReference = @ref",
                     conn);
 
             cmd.Parameters.AddWithValue("@ref", externalReference);
             cmd.Parameters.AddWithValue("@status", status);
+            cmd.Parameters.AddWithValue("@statusDetail", statusDetail);
             cmd.Parameters.AddWithValue("@mpId", mpPaymentId);
 
             await conn.OpenAsync();
@@ -123,6 +126,7 @@ namespace MpQr.Api.Persistence
                 Status = reader["Status"].ToString()!,
                 Amount = (decimal)reader["Amount"],
                 MercadoPagoPaymentId = reader["MercadoPagoPaymentId"]?.ToString(),
+                StatusDetail = reader["StatusDetail"]?.ToString(),
                 CreatedAt = (DateTime)reader["CreatedAt"],
                 UpdatedAt = reader["UpdatedAt"] as DateTime?
             };

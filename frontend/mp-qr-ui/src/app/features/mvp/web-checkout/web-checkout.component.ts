@@ -21,6 +21,10 @@ export class WebCheckoutComponent implements OnInit {
   private pendingLogger: any;
 
 
+  private lastProcessedStatus: string | null = null;
+  private lastProcessedDetail: string | null = null;
+
+
 
   // 🔵 Signals
   total = signal(0);
@@ -66,7 +70,6 @@ export class WebCheckoutComponent implements OnInit {
         this.contador++;
         console.log("status:", this.status()," ", this.contador);
       }
-
     }, 1000); // cada 1 segundo
   }
 
@@ -78,23 +81,32 @@ export class WebCheckoutComponent implements OnInit {
     
 
     this.signalR.startConnection((data) => {
-      if (data.externalReference === this.externalReference()) {
-        this.status.set(this.normalizeStatus(data.status));
-        this.statusDetail.set(data.statusDetail ?? null);
+      if (data.externalReference !== this.externalReference()) return;
+        
+      if (
+        this.lastProcessedStatus === data.status &&
+        this.lastProcessedDetail === data.statusDetail
+      ) {
+        return; 
+      }
+
+      this.lastProcessedStatus = data.status;
+      this.statusDetail.set(data.statusDetail ?? null);
+
       
-        if (this.pendingLogger) {
-          clearInterval(this.pendingLogger);
-        }
+      if (this.pendingLogger) 
+        clearInterval(this.pendingLogger);
+      
         
         if (data.status === 'approved') {
           setTimeout(() => {
             this.router.navigate(['/thank-you']);
           }, 1500);
         }
-      }
+      
     });
+  
   }
-
   pay() {
     if (this.total() <= 0) return;
 

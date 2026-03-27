@@ -69,60 +69,70 @@ namespace MpQr.Api.Services.MercadoPago
 
         public async Task<CreatePaymentResponseDto> CreatePaymentAsync(decimal amount, string mode = "web")
         {
-            var prefix = mode == "store" ? "STORE" : "WEB";
-            var externalReference = $"{prefix}-{Guid.NewGuid()}";
+            try 
+            { 
+                    var prefix = mode == "store" ? "STORE" : "WEB";
+                    var externalReference = $"{prefix}-{Guid.NewGuid()}";
 
-            var request = new PreferenceRequest
-            {
-                Items = new List<PreferenceItemRequest>
-        {
-            new PreferenceItemRequest
-            {
-                Title = mode == "store" ? "Pago Tienda Física" : "Compra Web",
-                Quantity = 1,
-                CurrencyId = "ARS",
-                UnitPrice = amount
-            }
-        },
-                ExternalReference = externalReference,
-                NotificationUrl = $"{_config["App:BaseUrl"]}/api/payments/webhook",
-                Expires = true,
-                ExpirationDateTo = DateTime.UtcNow.AddMinutes(10)
-            };
-
-            var client = new PreferenceClient();
-            var preference = await client.CreateAsync(request);
-
-            var checkoutUrl = preference.InitPoint
-                  ?? preference.SandboxInitPoint;
-
-            if (mode == "store")
-            {
-                await _storeRepository.InsertAsync(new Models.StorePayment
+                    var request = new PreferenceRequest
+                    {
+                        Items = new List<PreferenceItemRequest>
                 {
-                    ExternalReference = externalReference,
-                    Status = "pending",
-                    Amount = amount,
-                    IsEnabled = true,
-                    CheckoutUrl = checkoutUrl
-                });
-            }
-            else
-            {
-                await _repository.InsertAsync(new Models.Payment
-                {
-                    ExternalReference = externalReference,
-                    Status = "pending",
-                    Amount = amount
-                });
-            }
+                    new PreferenceItemRequest
+                    {
+                        Title = mode == "store" ? "Pago Tienda Física" : "Compra Web",
+                        Quantity = 1,
+                        CurrencyId = "ARS",
+                        UnitPrice = amount
+                    }
+                },
+                        ExternalReference = externalReference,
+                        NotificationUrl = $"{_config["App:BaseUrl"]}/api/payments/webhook",
+                        Expires = true,
+                        ExpirationDateTo = DateTime.UtcNow.AddMinutes(10)
+                    };
 
-            return new CreatePaymentResponseDto
+                    var client = new PreferenceClient();
+                    var preference = await client.CreateAsync(request);
+
+                    var checkoutUrl = preference.InitPoint
+                          ?? preference.SandboxInitPoint;
+
+                    if (mode == "store")
+                    {
+                        await _storeRepository.InsertAsync(new Models.StorePayment
+                        {
+                            ExternalReference = externalReference,
+                            Status = "pending",
+                            Amount = amount,
+                            IsEnabled = true,
+                            CheckoutUrl = checkoutUrl
+                        });
+                    }
+                    else
+                    {
+                        await _repository.InsertAsync(new Models.Payment
+                        {
+                            ExternalReference = externalReference,
+                            Status = "pending",
+                            Amount = amount
+                        });
+                    }
+
+                    return new CreatePaymentResponseDto
+                    {
+                        ExternalReference = externalReference,
+                        QrCode = checkoutUrl,
+                        Status = "pending"
+                    };
+                }
+            catch (Exception ex)
             {
-                ExternalReference = externalReference,
-                QrCode = checkoutUrl,
-                Status = "pending"
-            };
+                Console.WriteLine("ERROR MP:");
+                Console.WriteLine(ex.Message);
+                Console.WriteLine(ex.StackTrace);
+                throw;
+            }
         }
 
         public async Task<PaymentStatusResponseDto> GetStatusAsync(string externalReference)
@@ -148,9 +158,9 @@ namespace MpQr.Api.Services.MercadoPago
 
         //bloqueo duro en el gateway
         public async Task ProcessWebhookAsync(
-    string externalReference,
-    string status,
-    string mercadoPagoPaymentId)
+            string externalReference,
+            string status,
+            string mercadoPagoPaymentId)
         {
             // 🔵 Si es STORE
             if (externalReference.StartsWith("STORE-"))
@@ -183,6 +193,11 @@ namespace MpQr.Api.Services.MercadoPago
             }
 
             // 🔵 Si es WEB (lógica actual)
+            var client = new PaymentClient();
+            var PaymentMp = await client.GetAsync(long.Parse(mercadoPagoPaymentId));
+
+            var statusDetail = PaymentMp.StatusDetail;
+
             var payment = await _repository
                 .GetByExternalReferenceAsync(externalReference);
 
@@ -205,6 +220,7 @@ namespace MpQr.Api.Services.MercadoPago
             await _repository.UpdateStatusAndMpIdAsync(
                 externalReference,
                 status,
+                statusDetail,
                 mercadoPagoPaymentId
             );
         }

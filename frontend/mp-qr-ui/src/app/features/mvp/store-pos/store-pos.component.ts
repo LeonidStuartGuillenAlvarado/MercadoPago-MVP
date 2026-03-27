@@ -15,7 +15,8 @@ export class StorePosComponent implements OnInit, OnDestroy {
   private signalR = inject(SignalRService);
   private router = inject(Router);
 
-  qrUrl = 'https://timmy-uncarpeted-miki.ngrok-free.dev/api/store/scan';
+
+  qrUrl = 'https://postpalpebral-karrie-overhostilely.ngrok-free.dev/api/store/scan';
   qrEnabled = signal(false);
   message = '';
 

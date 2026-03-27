@@ -19,7 +19,10 @@ export class SignalRService {
       .start()
       .then(() => console.log('SignalR Connected'))
       .catch((err) => console.error('SignalR Error:', err));
+    
 
+
+    this.hubConnection.off('PaymentUpdated'); // Asegura que no se dupliquen los manejadores
     this.hubConnection.on('PaymentUpdated', (data) => {
       console.log('Evento recibido:', data);
       onUpdate(data);

@@ -11,5 +11,8 @@
 
         // NUEVO: id del pago de MercadoPago
         public string? MercadoPagoPaymentId { get; set; }
+
+        //Nuevo: Detalle de status
+        public string? StatusDetail { get; set; }
     }
 }
