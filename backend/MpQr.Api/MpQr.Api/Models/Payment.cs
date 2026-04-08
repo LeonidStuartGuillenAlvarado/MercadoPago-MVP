@@ -1,18 +1,14 @@
-﻿namespace MpQr.Api.Models
+namespace MpQr.Api.Models
 {
     public class Payment
     {
-        public int Id { get; set; }
-        public string ExternalReference { get; set; } = default!;
-        public string Status { get; set; } = default!;
-        public decimal Amount { get; set; }
-        public DateTime CreatedAt { get; set; }
-        public DateTime? UpdatedAt { get; set; }
-
-        // NUEVO: id del pago de MercadoPago
-        public string? MercadoPagoPaymentId { get; set; }
-
-        //Nuevo: Detalle de status
-        public string? StatusDetail { get; set; }
+        public int      Id                      { get; set; }
+        public string   ExternalReference       { get; set; } = default!;
+        public string   Status                  { get; set; } = PaymentStatus.Pending;
+        public string?  StatusDetail            { get; set; }
+        public decimal  Amount                  { get; set; }
+        public string?  MercadoPagoPaymentId    { get; set; }
+        public DateTime CreatedAt               { get; set; }
+        public DateTime? UpdatedAt              { get; set; }
     }
 }

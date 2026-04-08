@@ -11,26 +11,29 @@ builder.Services.AddSignalR();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-// CORS
+// ── CORS ──────────────────────────────────────────────────────────────────────
+// Restringido a los orígenes conocidos. Agregar más en AllowedOrigins (appsettings).
+var allowedOrigins = builder.Configuration
+    .GetSection("App:AllowedOrigins")
+    .Get<string[]>() ?? [];
+
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowAll", policy =>
+    options.AddPolicy("FrontendPolicy", policy =>
     {
-        policy.AllowAnyHeader()
+        policy.WithOrigins(allowedOrigins)
+              .AllowAnyHeader()
               .AllowAnyMethod()
-              .AllowCredentials()
-              .SetIsOriginAllowed(_ => true);
+              .AllowCredentials();
     });
 });
 
-// DI
+// ── DI ───────────────────────────────────────────────────────────────────────
 builder.Services.AddScoped<SqlConnectionFactory>();
 builder.Services.AddScoped<PaymentRepository>();
+builder.Services.AddScoped<StorePaymentRepository>();
 builder.Services.AddScoped<IPaymentGateway, MercadoPagoCheckoutApiGateway>();
 builder.Services.AddScoped<MercadoPagoSignatureValidator>();
-builder.Services.AddScoped<StorePaymentRepository>();
-
-
 
 var app = builder.Build();
 
@@ -42,7 +45,7 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.UseRouting();
-app.UseCors("AllowAll");
+app.UseCors("FrontendPolicy");
 app.UseAuthorization();
 
 app.MapControllers();

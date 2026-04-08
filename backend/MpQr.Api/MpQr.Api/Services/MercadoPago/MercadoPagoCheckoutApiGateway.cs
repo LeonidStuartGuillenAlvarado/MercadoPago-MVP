@@ -1,7 +1,7 @@
-﻿using MercadoPago.Client.Payment;
 using MercadoPago.Client.Preference;
 using MercadoPago.Config;
 using MpQr.Api.Dtos;
+using MpQr.Api.Models;
 using MpQr.Api.Persistence;
 using MpQr.Api.Services.Interfaces;
 
@@ -9,221 +9,181 @@ namespace MpQr.Api.Services.MercadoPago
 {
     public class MercadoPagoCheckoutApiGateway : IPaymentGateway
     {
-        private readonly PaymentRepository _repository;
-        private readonly IConfiguration _config;
+        private readonly PaymentRepository      _repository;
         private readonly StorePaymentRepository _storeRepository;
+        private readonly IConfiguration         _config;
+        private readonly ILogger<MercadoPagoCheckoutApiGateway> _logger;
 
         public MercadoPagoCheckoutApiGateway(
             PaymentRepository repository,
             StorePaymentRepository storeRepository,
-            IConfiguration config)
+            IConfiguration config,
+            ILogger<MercadoPagoCheckoutApiGateway> logger)
         {
-            _repository = repository;
+            _repository      = repository;
             _storeRepository = storeRepository;
-            _config = config;
+            _config          = config;
+            _logger          = logger;
 
-            MercadoPagoConfig.AccessToken = config["MercadoPago:AccessToken"];
+            // Configuración del SDK (una sola vez por instancia)
+            MercadoPagoConfig.AccessToken = config["MercadoPago:AccessToken"]
+                ?? throw new InvalidOperationException("MercadoPago:AccessToken no configurado.");
         }
 
-        //public async Task<CreatePaymentResponseDto> CreatePaymentAsync(decimal amount)
-        //{
-        //    var externalReference = Guid.NewGuid().ToString();
-
-        //    var request = new PreferenceRequest
-        //    {
-        //        Items = new List<PreferenceItemRequest>
-        //        {
-        //            new PreferenceItemRequest
-        //            {
-        //                Title = "Pago QR",
-        //                Quantity = 1,
-        //                CurrencyId = "ARS",
-        //                UnitPrice = amount
-        //            }
-        //        },
-        //        ExternalReference = externalReference,
-        //        NotificationUrl = $"{_config["App:BaseUrl"]}/api/payments/webhook",
-
-        //        // ⏳ EXPIRACIÓN AUTOMÁTICA
-        //        Expires = true,
-        //        ExpirationDateTo = DateTime.UtcNow.AddMinutes(10)
-        //    };
-
-        //    var client = new PreferenceClient();
-        //    var preference = await client.CreateAsync(request);
-
-        //    await _repository.InsertAsync(new Models.Payment
-        //    {
-        //        ExternalReference = externalReference,
-        //        Status = "pending",
-        //        Amount = amount
-        //    });
-
-        //    return new CreatePaymentResponseDto
-        //    {
-        //        ExternalReference = externalReference,
-        //        QrCode = preference.InitPoint, // 🔥 esto es la URL pagable
-        //        Status = "pending"
-        //    };
-        //}
-
+        // ─────────────────────────────────────────────────────────────────────
+        // CREAR PAGO
+        // ─────────────────────────────────────────────────────────────────────
         public async Task<CreatePaymentResponseDto> CreatePaymentAsync(decimal amount, string mode = "web")
         {
-            try 
-            { 
-                    var prefix = mode == "store" ? "STORE" : "WEB";
-                    var externalReference = $"{prefix}-{Guid.NewGuid()}";
+            var isStore        = mode == "store";
+            var prefix         = isStore ? "STORE" : "WEB";
+            var externalRef    = $"{prefix}-{Guid.NewGuid()}";
+            var title          = isStore ? "Pago Tienda Física" : "Compra Web";
 
-                    var request = new PreferenceRequest
-                    {
-                        Items = new List<PreferenceItemRequest>
+            var request = new PreferenceRequest
+            {
+                Items = new List<PreferenceItemRequest>
                 {
-                    new PreferenceItemRequest
+                    new()
                     {
-                        Title = mode == "store" ? "Pago Tienda Física" : "Compra Web",
-                        Quantity = 1,
+                        Title      = title,
+                        Quantity   = 1,
                         CurrencyId = "ARS",
-                        UnitPrice = amount
+                        UnitPrice  = amount
                     }
                 },
-                        ExternalReference = externalReference,
-                        NotificationUrl = $"{_config["App:BaseUrl"]}/api/payments/webhook",
-                        Expires = true,
-                        ExpirationDateTo = DateTime.UtcNow.AddMinutes(10)
-                    };
+                ExternalReference = externalRef,
+                NotificationUrl   = $"{_config["App:BaseUrl"]}/api/payments/webhook",
+                Expires           = true,
+                ExpirationDateTo  = DateTime.UtcNow.AddMinutes(10)
+            };
 
-                    var client = new PreferenceClient();
-                    var preference = await client.CreateAsync(request);
+            var client     = new PreferenceClient();
+            var preference = await client.CreateAsync(request);
+            var checkoutUrl = preference.InitPoint ?? preference.SandboxInitPoint;
 
-                    var checkoutUrl = preference.InitPoint
-                          ?? preference.SandboxInitPoint;
-
-                    if (mode == "store")
-                    {
-                        await _storeRepository.InsertAsync(new Models.StorePayment
-                        {
-                            ExternalReference = externalReference,
-                            Status = "pending",
-                            Amount = amount,
-                            IsEnabled = true,
-                            CheckoutUrl = checkoutUrl
-                        });
-                    }
-                    else
-                    {
-                        await _repository.InsertAsync(new Models.Payment
-                        {
-                            ExternalReference = externalReference,
-                            Status = "pending",
-                            Amount = amount
-                        });
-                    }
-
-                    return new CreatePaymentResponseDto
-                    {
-                        ExternalReference = externalReference,
-                        QrCode = checkoutUrl,
-                        Status = "pending"
-                    };
-                }
-            catch (Exception ex)
+            if (isStore)
             {
-                Console.WriteLine("ERROR MP:");
-                Console.WriteLine(ex.Message);
-                Console.WriteLine(ex.StackTrace);
-                throw;
+                await _storeRepository.InsertAsync(new StorePayment
+                {
+                    ExternalReference = externalRef,
+                    Status            = PaymentStatus.Pending,
+                    Amount            = amount,
+                    IsEnabled         = true,
+                    CheckoutUrl       = checkoutUrl
+                });
             }
+            else
+            {
+                await _repository.InsertAsync(new Payment
+                {
+                    ExternalReference = externalRef,
+                    Status            = PaymentStatus.Pending,
+                    Amount            = amount
+                });
+            }
+
+            return new CreatePaymentResponseDto
+            {
+                ExternalReference = externalRef,
+                QrCode            = checkoutUrl,
+                Status            = PaymentStatus.Pending
+            };
         }
 
+        // ─────────────────────────────────────────────────────────────────────
+        // OBTENER ESTADO
+        // ─────────────────────────────────────────────────────────────────────
         public async Task<PaymentStatusResponseDto> GetStatusAsync(string externalReference)
         {
-            var status = await _repository.GetStatusAsync(externalReference);
+            // Buscar primero en WEB, luego en STORE según el prefijo
+            string? status;
 
-            return new PaymentStatusResponseDto
+            if (externalReference.StartsWith("STORE-"))
             {
-                Status = status
-            };
+                var sp = await _storeRepository.GetByExternalReferenceAsync(externalReference);
+                status = sp?.Status;
+            }
+            else
+            {
+                status = await _repository.GetStatusAsync(externalReference);
+            }
+
+            return new PaymentStatusResponseDto { Status = status ?? PaymentStatus.Pending };
         }
 
-
+        // ─────────────────────────────────────────────────────────────────────
+        // CANCELAR
+        // ─────────────────────────────────────────────────────────────────────
         public async Task<CancelPaymentResponseDto> CancelAsync(string externalReference)
         {
-            await _repository.UpdateStatusAsync(externalReference, "cancelled");
+            if (externalReference.StartsWith("STORE-"))
+                await _storeRepository.UpdateStatusAsync(externalReference, PaymentStatus.Cancelled);
+            else
+                await _repository.UpdateStatusAsync(externalReference, PaymentStatus.Cancelled);
 
-            return new CancelPaymentResponseDto
-            {
-                Status = "cancelled"
-            };
+            return new CancelPaymentResponseDto { Status = PaymentStatus.Cancelled };
         }
 
-        //bloqueo duro en el gateway
+        // ─────────────────────────────────────────────────────────────────────
+        // PROCESAR WEBHOOK
+        // statusDetail ya viene resuelto desde el controller (sin doble llamada al SDK)
+        // ─────────────────────────────────────────────────────────────────────
         public async Task ProcessWebhookAsync(
             string externalReference,
             string status,
+            string statusDetail,
             string mercadoPagoPaymentId)
         {
-            // 🔵 Si es STORE
             if (externalReference.StartsWith("STORE-"))
             {
-                var storePayment = await _storeRepository
-                    .GetByExternalReferenceAsync(externalReference);
+                var sp = await _storeRepository.GetByExternalReferenceAsync(externalReference);
 
-                if (storePayment == null)
-                    return;
-
-                // 🔒 Bloqueo estados finales
-                if (storePayment.Status == "approved" ||
-                    storePayment.Status == "cancelled" ||
-                    storePayment.Status == "rejected")
+                if (sp == null)
                 {
+                    _logger.LogWarning("Webhook STORE: ExternalReference no encontrado {Ref}", externalReference);
                     return;
                 }
 
-                // Solo procesar approved
-                if (status == "approved")
+                // Bloqueo de estados finales
+                if (PaymentStatus.IsFinal(sp.Status))
+                    return;
+
+                // Idempotencia: mismo ID y mismo estado → ya procesado
+                if (sp.MercadoPagoPaymentId == mercadoPagoPaymentId &&
+                    sp.Status == status)
+                    return;
+
+                // Actualizar para CUALQUIER estado (approved, rejected, in_process, etc.)
+                _logger.LogInformation(
+                    "Webhook STORE: actualizando {Ref} → {Status} ({Detail})",
+                    externalReference, status, statusDetail);
+
+                await _storeRepository.UpdateStatusAndMpIdAsync(
+                    externalReference, status, statusDetail, mercadoPagoPaymentId);
+            }
+            else
+            {
+                var payment = await _repository.GetByExternalReferenceAsync(externalReference);
+
+                if (payment == null)
                 {
-                    await _storeRepository.UpdateStatusAndMpIdAsync(
-                        externalReference,
-                        "approved",
-                        mercadoPagoPaymentId
-                    );
+                    _logger.LogWarning("Webhook WEB: ExternalReference no encontrado {Ref}", externalReference);
+                    return;
                 }
 
-                return;
+                // Bloqueo de estados finales
+                if (PaymentStatus.IsFinal(payment.Status))
+                    return;
+
+                // Idempotencia: mismo ID y mismo estado → ya procesado
+                if (payment.MercadoPagoPaymentId == mercadoPagoPaymentId &&
+                    payment.Status == status)
+                    return;
+
+                await _repository.UpdateStatusAndMpIdAsync(
+                    externalReference, status, statusDetail, mercadoPagoPaymentId);
             }
-
-            // 🔵 Si es WEB (lógica actual)
-            var client = new PaymentClient();
-            var PaymentMp = await client.GetAsync(long.Parse(mercadoPagoPaymentId));
-
-            var statusDetail = PaymentMp.StatusDetail;
-
-            var payment = await _repository
-                .GetByExternalReferenceAsync(externalReference);
-
-            if (payment == null)
-                return;
-
-            if (payment.Status == "approved" ||
-                payment.Status == "cancelled" ||
-                payment.Status == "rejected")
-            {
-                return;
-            }
-
-            if (payment.MercadoPagoPaymentId == mercadoPagoPaymentId &&
-                payment.Status == status)
-            {
-                return;
-            }
-
-            await _repository.UpdateStatusAndMpIdAsync(
-                externalReference,
-                status,
-                statusDetail,
-                mercadoPagoPaymentId
-            );
         }
-
     }
 }

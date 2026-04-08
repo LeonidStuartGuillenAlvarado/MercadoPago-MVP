@@ -1,4 +1,4 @@
-﻿using Microsoft.Data.SqlClient;
+using Microsoft.Data.SqlClient;
 using MpQr.Api.Models;
 
 namespace MpQr.Api.Persistence
@@ -15,11 +15,11 @@ namespace MpQr.Api.Persistence
         public async Task InsertAsync(Payment payment)
         {
             using var conn = _factory.Create();
-            using var cmd = new SqlCommand(
-                @"INSERT INTO Payments (ExternalReference, Status, Amount)
-                  VALUES (@ref, @status, @amount)", conn);
+            using var cmd  = new SqlCommand(@"
+                INSERT INTO Payments (ExternalReference, Status, Amount)
+                VALUES (@ref, @status, @amount)", conn);
 
-            cmd.Parameters.AddWithValue("@ref", payment.ExternalReference);
+            cmd.Parameters.AddWithValue("@ref",    payment.ExternalReference);
             cmd.Parameters.AddWithValue("@status", payment.Status);
             cmd.Parameters.AddWithValue("@amount", payment.Amount);
 
@@ -27,34 +27,60 @@ namespace MpQr.Api.Persistence
             await cmd.ExecuteNonQueryAsync();
         }
 
-        public async Task<string> GetStatusAsync(string externalReference)
+        public async Task<string?> GetStatusAsync(string externalReference)
         {
             using var conn = _factory.Create();
-            using var cmd = new SqlCommand(
+            using var cmd  = new SqlCommand(
                 "SELECT Status FROM Payments WHERE ExternalReference = @ref", conn);
 
             cmd.Parameters.AddWithValue("@ref", externalReference);
 
             await conn.OpenAsync();
             var result = await cmd.ExecuteScalarAsync();
+            return result?.ToString();
+        }
 
-            return result?.ToString() ?? "pending";
+        public async Task<Payment?> GetByExternalReferenceAsync(string externalReference)
+        {
+            using var conn = _factory.Create();
+            using var cmd  = new SqlCommand(
+                "SELECT TOP 1 * FROM Payments WHERE ExternalReference = @ref", conn);
+
+            cmd.Parameters.AddWithValue("@ref", externalReference);
+
+            await conn.OpenAsync();
+            using var reader = await cmd.ExecuteReaderAsync();
+
+            if (!reader.Read()) return null;
+
+            return new Payment
+            {
+                Id                   = (int)reader["Id"],
+                ExternalReference    = reader["ExternalReference"].ToString()!,
+                Status               = reader["Status"].ToString()!,
+                StatusDetail         = reader["StatusDetail"] as string,
+                Amount               = (decimal)reader["Amount"],
+                MercadoPagoPaymentId = reader["MercadoPagoPaymentId"] as string,
+                CreatedAt            = (DateTime)reader["CreatedAt"],
+                UpdatedAt            = reader["UpdatedAt"] as DateTime?
+            };
         }
 
         public async Task UpdateStatusAsync(string externalReference, string status)
         {
             using var conn = _factory.Create();
-            using var cmd = new SqlCommand(
-                @"UPDATE Payments
-                  SET Status = @status, UpdatedAt = GETDATE()
-                  WHERE ExternalReference = @ref", conn);
+            using var cmd  = new SqlCommand(@"
+                UPDATE Payments
+                SET Status = @status, UpdatedAt = GETDATE()
+                WHERE ExternalReference = @ref", conn);
 
-            cmd.Parameters.AddWithValue("@ref", externalReference);
+            cmd.Parameters.AddWithValue("@ref",    externalReference);
             cmd.Parameters.AddWithValue("@status", status);
 
             await conn.OpenAsync();
             await cmd.ExecuteNonQueryAsync();
         }
+
         public async Task UpdateStatusAndMpIdAsync(
             string externalReference,
             string status,
@@ -62,75 +88,21 @@ namespace MpQr.Api.Persistence
             string mpPaymentId)
         {
             using var conn = _factory.Create();
-            using var cmd = new SqlCommand(
-                @"UPDATE Payments
-                    SET Status = @status,
-                     MercadoPagoPaymentId = @mpId,
-                     StatusDetail = @statusDetail,
-                     UpdatedAt = GETDATE()
-                    WHERE ExternalReference = @ref",
-                    conn);
+            using var cmd  = new SqlCommand(@"
+                UPDATE Payments
+                SET Status               = @status,
+                    MercadoPagoPaymentId = @mpId,
+                    StatusDetail         = @statusDetail,
+                    UpdatedAt            = GETDATE()
+                WHERE ExternalReference = @ref", conn);
 
-            cmd.Parameters.AddWithValue("@ref", externalReference);
-            cmd.Parameters.AddWithValue("@status", status);
-            cmd.Parameters.AddWithValue("@statusDetail", statusDetail);
-            cmd.Parameters.AddWithValue("@mpId", mpPaymentId);
+            cmd.Parameters.AddWithValue("@ref",          externalReference);
+            cmd.Parameters.AddWithValue("@status",       status);
+            cmd.Parameters.AddWithValue("@statusDetail", (object?)statusDetail ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("@mpId",         mpPaymentId);
 
             await conn.OpenAsync();
             await cmd.ExecuteNonQueryAsync();
         }
-
-        public async Task<StorePayment?> GetActiveAsync()
-        {
-            using var conn = _factory.Create();
-            using var cmd = new SqlCommand(@"
-        SELECT TOP 1 *
-        FROM StorePayments
-        WHERE Status = 'pending'
-        AND IsEnabled = 1
-        ORDER BY CreatedAt DESC", conn);
-
-            await conn.OpenAsync();
-            using var reader = await cmd.ExecuteReaderAsync();
-
-            if (!reader.Read())
-                return null;
-
-            return new StorePayment
-            {
-                ExternalReference = reader["ExternalReference"].ToString()!,
-                Status = reader["Status"].ToString()!,
-                Amount = (decimal)reader["Amount"]
-            };
-        }
-
-        //con esto bloqueamos la reutilizacion
-        public async Task<Payment?> GetByExternalReferenceAsync(string externalReference)
-        {
-            using var conn = _factory.Create();
-            using var cmd = new SqlCommand(
-                @"SELECT TOP 1 * FROM Payments WHERE ExternalReference = @ref", conn);
-
-            cmd.Parameters.AddWithValue("@ref", externalReference);
-
-            await conn.OpenAsync();
-            using var reader = await cmd.ExecuteReaderAsync();
-
-            if (!reader.Read())
-                return null;
-
-            return new Payment
-            {
-                Id = (int)reader["Id"],
-                ExternalReference = reader["ExternalReference"].ToString()!,
-                Status = reader["Status"].ToString()!,
-                Amount = (decimal)reader["Amount"],
-                MercadoPagoPaymentId = reader["MercadoPagoPaymentId"]?.ToString(),
-                StatusDetail = reader["StatusDetail"]?.ToString(),
-                CreatedAt = (DateTime)reader["CreatedAt"],
-                UpdatedAt = reader["UpdatedAt"] as DateTime?
-            };
-        }
-
     }
 }
