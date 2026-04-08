@@ -11,11 +11,6 @@ import { CommonModule } from '@angular/common';
 export class HomeComponent {
   constructor(private router: Router) {}
 
-  goWeb() {
-    this.router.navigate(['/web']);
-  }
-
-  goStore() {
-    this.router.navigate(['/store']);
-  }
+  goWeb()   { this.router.navigate(['/web']);   }
+  goStore() { this.router.navigate(['/store']); }
 }

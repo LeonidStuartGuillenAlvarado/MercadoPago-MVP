@@ -1,13 +1,14 @@
 <div class="min-h-screen flex flex-col items-center justify-center gap-6 bg-gray-100">
-  <h1 class="text-3xl font-bold">PruebaMVP de MercadoPago</h1>
+  <h1 class="text-3xl font-bold text-gray-800">MVP MercadoPago</h1>
+  <p class="text-gray-500 text-sm">Seleccione el canal de compra</p>
 
-  <button class="bg-blue-600 text-white px-6 py-3 rounded-xl"
+  <button class="bg-blue-600 hover:bg-blue-700 transition text-white px-8 py-3 rounded-xl text-lg"
           (click)="goWeb()">
-    Comprar en la Web
+    🛒 Comprar en la Web
   </button>
 
-  <button class="bg-green-600 text-white px-6 py-3 rounded-xl"
+  <button class="bg-green-600 hover:bg-green-700 transition text-white px-8 py-3 rounded-xl text-lg"
           (click)="goStore()">
-    Comprar en Tienda Física
+    🏪 Tienda Física (POS)
   </button>
 </div>

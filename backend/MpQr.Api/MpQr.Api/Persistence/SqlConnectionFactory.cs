@@ -1,4 +1,4 @@
-﻿using Microsoft.Data.SqlClient;
+using Microsoft.Data.SqlClient;
 
 namespace MpQr.Api.Persistence
 {
@@ -8,12 +8,10 @@ namespace MpQr.Api.Persistence
 
         public SqlConnectionFactory(IConfiguration configuration)
         {
-            _connectionString = configuration.GetConnectionString("DefaultConnection")!;
+            _connectionString = configuration.GetConnectionString("DefaultConnection")
+                ?? throw new InvalidOperationException("ConnectionStrings:DefaultConnection no configurado.");
         }
 
-        public SqlConnection Create()
-        {
-            return new SqlConnection(_connectionString);
-        }
+        public SqlConnection Create() => new(_connectionString);
     }
 }

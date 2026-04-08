@@ -1,3 +1,7 @@
 export const environment = {
-  apiUrl: 'https://timmy-uncarpeted-miki.ngrok-free.dev'
+  production: false,
+  // El frontend habla directamente con el backend local.
+  // ngrok solo es necesario para que MercadoPago entregue webhooks desde internet
+  // (se configura en appsettings.json → App:BaseUrl, no aquí).
+  apiUrl: 'http://localhost:5251'
 };

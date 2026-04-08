@@ -2,56 +2,71 @@
   <div class="bg-white w-full max-w-md rounded-2xl shadow-xl p-8 space-y-6">
 
     <!-- Header -->
-    <div class="text-center space-y-2">
+    <div class="text-center space-y-1">
       <h1 class="text-3xl font-bold text-gray-800">Checkout</h1>
-      <p class="text-gray-500 text-sm">Escanea el código QR para completar el pago</p>
+      <p class="text-gray-400 text-sm">Escaneá el código QR para completar el pago</p>
     </div>
 
     <!-- Total -->
-    <div class="text-center text-xl">
-      Total:
-      <span class="font-bold text-blue-600">${{ total() }}</span>
+    <div class="text-center text-xl text-gray-700">
+      Total: <span class="font-bold text-blue-600">${{ total() }}</span>
     </div>
 
-    <!-- Button -->
+    <!-- Botón generar QR (estado idle) -->
     <button
+      *ngIf="status() === 'idle'"
       class="w-full bg-green-600 hover:bg-green-700 transition text-white py-3 rounded-xl disabled:bg-gray-400"
-      [disabled]="loading()"
-      (click)="pay()"
-    >
+      [disabled]="loading() || total() <= 0"
+      (click)="pay()">
       {{ loading() ? 'Generando...' : 'Generar QR' }}
     </button>
 
-    <!-- QR Section -->
-    <div *ngIf="showQr()" class="flex flex-col items-center space-y-4">
-
+    <!-- QR -->
+    <div *ngIf="showQr()" class="flex flex-col items-center space-y-3">
       <qrcode
         [qrdata]="qrCode()!"
         [width]="250"
         [errorCorrectionLevel]="'M'"
-        class="rounded-xl shadow-md"
-      ></qrcode>
+        class="rounded-xl shadow-md">
+      </qrcode>
 
-      <div class="text-xs text-gray-400 break-all text-center">
-        Ref: {{ externalReference() }}
-      </div>
+      <p class="text-xs text-gray-400 break-all text-center">Ref: {{ externalReference() }}</p>
 
+      <!-- Botón cancelar mientras está pendiente -->
+      <button
+        class="text-sm text-red-500 hover:underline"
+        (click)="cancel()">
+        Cancelar pago
+      </button>
     </div>
 
-    <!-- Status Badge -->
+    <!-- Badge de estado -->
     <div *ngIf="status() !== 'idle'" class="flex justify-center">
       <span
         class="px-4 py-1 text-sm font-semibold rounded-full"
         [ngClass]="{
           'bg-yellow-100 text-yellow-700': status() === 'pending',
-          'bg-green-100 text-green-700': status() === 'approved',
-          'bg-red-100 text-red-700': status() === 'rejected',
-          'bg-gray-200 text-gray-700': status() === 'cancelled'
-        }"
-      >
+          'bg-green-100  text-green-700':  status() === 'approved',
+          'bg-red-100    text-red-700':    status() === 'rejected',
+          'bg-gray-200   text-gray-700':   status() === 'cancelled',
+          'bg-blue-100   text-blue-700':   status() === 'in_process'
+        }">
         {{ status() | uppercase }}
       </span>
     </div>
+
+    <!-- Detalle del estado -->
+    <div *ngIf="statusDetail()" class="text-center text-sm text-gray-600">
+      {{ statusDetailLabel(statusDetail()) }}
+    </div>
+
+    <!-- Botón reintentar si fue rechazado o cancelado -->
+    <button
+      *ngIf="status() === 'rejected' || status() === 'cancelled'"
+      class="w-full bg-blue-600 hover:bg-blue-700 transition text-white py-3 rounded-xl"
+      (click)="retry()">
+      Intentar nuevamente
+    </button>
 
   </div>
 </div>

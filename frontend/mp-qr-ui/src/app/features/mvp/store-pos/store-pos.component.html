@@ -1,59 +1,68 @@
 <div class="min-h-screen bg-gray-100 p-8">
-  <h1 class="text-3xl font-bold mb-8 text-center">POS Tienda Física</h1>
+  <h1 class="text-3xl font-bold mb-8 text-center text-gray-800">POS — Tienda Física</h1>
 
+  <!-- Grilla de productos -->
   <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-    <div
-      *ngFor="let p of products()"
-      class="bg-white rounded-2xl shadow-lg p-6 flex flex-col gap-4"
-    >
-      <h2 class="text-xl font-semibold">
-        {{ p.name }}
-      </h2>
-
-      <p class="text-gray-600">Precio: ${{ p.price }}</p>
+    <div *ngFor="let p of products()"
+         class="bg-white rounded-2xl shadow-lg p-6 flex flex-col gap-4">
+      <h2 class="text-xl font-semibold text-gray-800">{{ p.name }}</h2>
+      <p class="text-gray-500">Precio: <span class="font-medium">${{ p.price }}</span></p>
 
       <div class="flex items-center gap-4">
-        <button class="bg-red-500 text-white px-3 py-1 rounded-lg" (click)="decrease(p)">-</button>
-
-        <span class="text-lg font-bold">
-          {{ p.qty }}
-        </span>
-
-        <button class="bg-green-500 text-white px-3 py-1 rounded-lg" (click)="increase(p)">
-          +
-        </button>
+        <button class="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded-lg transition"
+                (click)="decrease(p)">−</button>
+        <span class="text-lg font-bold w-6 text-center">{{ p.qty }}</span>
+        <button class="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded-lg transition"
+                (click)="increase(p)">+</button>
       </div>
     </div>
   </div>
 
+  <!-- Panel de cobro + QR -->
   <div class="mt-10 bg-white p-6 rounded-2xl shadow-lg">
     <div class="grid md:grid-cols-2 gap-8 items-center">
-      <!-- 🔵 COLUMNA IZQUIERDA -->
-      <div>
-        <p class="text-xl">
-          Total:
-          <span class="font-bold text-green-600"> ${{ total() }} </span>
+
+      <!-- Columna izquierda: total y acciones -->
+      <div class="space-y-4">
+        <p class="text-xl text-gray-700">
+          Total: <span class="font-bold text-green-600">${{ total() }}</span>
         </p>
 
         <button
-          class="mt-6 w-full bg-green-600 text-white py-3 rounded-xl disabled:bg-gray-400"
-          [disabled]="total() === 0 || loading"
-          (click)="cobrar()"
-        >
-          Cobrar
+          class="w-full bg-green-600 hover:bg-green-700 transition text-white py-3 rounded-xl disabled:bg-gray-400"
+          [disabled]="total() === 0 || loading() || qrEnabled()"
+          (click)="cobrar()">
+          {{ loading() ? 'Generando cobro...' : 'Cobrar' }}
+        </button>
+
+        <button
+          *ngIf="qrEnabled()"
+          class="w-full border border-red-400 text-red-500 hover:bg-red-50 transition py-2 rounded-xl text-sm"
+          (click)="cancelarCobro()">
+          Cancelar cobro
         </button>
       </div>
 
-      <!-- 🟢 COLUMNA DERECHA (QR) -->
-      <div class="flex flex-col items-center">
-        <qrcode [qrdata]="qrUrl" [width]="220" [errorCorrectionLevel]="'M'"> </qrcode>
+      <!-- Columna derecha: QR estático -->
+      <div class="flex flex-col items-center gap-3">
+        <qrcode
+          [qrdata]="qrUrl"
+          [width]="220"
+          [errorCorrectionLevel]="'M'"
+          class="rounded-xl">
+        </qrcode>
 
-        <div *ngIf="!qrEnabled()" class="mt-4 text-red-600 font-semibold">QR no habilitado</div>
+        <div *ngIf="!qrEnabled()"
+             class="px-4 py-1 bg-red-100 text-red-700 text-sm font-semibold rounded-full">
+          QR no habilitado
+        </div>
 
-        <div *ngIf="qrEnabled()" class="mt-4 text-green-600 font-semibold">
-          QR habilitado. El cliente puede escanear.
+        <div *ngIf="qrEnabled()"
+             class="px-4 py-1 bg-green-100 text-green-700 text-sm font-semibold rounded-full">
+          ✓ QR habilitado — el cliente puede escanear
         </div>
       </div>
+
     </div>
   </div>
 </div>
